@@ -1,0 +1,67 @@
+#!/bin/bash
+
+curpath=`pwd`
+if [ "$curpath" = "/" ]; then
+   echo "I would not run a find on '/' , if you really want to do it hack me. My programmer is too lazy now to add parameters here."
+   exit;
+fi
+
+echo "We will create a nice 'pmfindex.html' file with links to all your files in $curpath."
+
+find . -type f -name '*' -print > pmfindex.0
+
+mkdir pmfindex-dir
+
+mkdir pmfindex-dir/html
+
+cd pmfindex-dir
+
+mv ../pmfindex.0 .
+
+cat>html/pmfindex.css<<InlineStyleSheet
+<HTML>
+<HEAD>
+<style type="text/css">
+body{margin:0;padding:30;background:#FFFFFF;font-family:Arial, Helvetica, sans-serif;font-size:15px;color:#555;}
+h1, h2, h3{margin:0;padding:0;font-weight:normal;color:#555;}
+h1{font-size:3.5em;}
+h2{font-size:2.4em;}
+h3{font-size:1.6em;}
+td.filename{font-size:0.8em;}
+td.filetype{font-size:0.8em;}
+p, ul, ol{margin-top:0;line-height:180%;}
+a{text-decoration:underline;color:#FF2929;padding:5;font-size:0.8em}
+td.rpath{color:#777788;padding:5;font-size:0.6em;}
+</style>
+
+<script type="text/javascript" src="http://kae.li/libs/table.js"></script>
+</HEAD>
+InlineStyleSheet
+
+cat>html/pmfindex.js<<InlineJs
+<BODY>
+<table class="example table-autosort:0 table-stripeclass:alternate">
+<thead>
+        <tr>
+                <th class="table-sortable:default">Filename</th>
+                <th class="table-sortable:default">(view)</th>
+                <th class="table-sortable:default">Path</th>
+        </tr>
+</thead>
+
+InlineJs
+
+cat pmfindex.0 | awk -F"/" -v curpth="$curpath" '{print "<TR><TD class=filename>"$(NF)"</TD><TD><A HREF=\"../."$0"\">view</A></TD><TD class=rpath>"$0"</TD></TR>"}' | sort > pmfindex.1
+cat pmfindex.0  | awk -F"/" '{print $(NF)}' | awk -F"." '{print $(NF)}' | sort | uniq -c | egrep -v "^      [1|2|3|4]" | awk '{print $2" "$1}' > pmfindex.extensions
+
+awk '{print $1}' pmfindex.extensions | awk '{print "cat html/pmfindex.css  html/pmfindex.js > html/"$1".ext.html; egrep -i \"\\."$1"</TD>\" pmfindex.1 >> html/"$1".ext.html"}' > pmfindex-htmlgen.sh
+
+source ./pmfindex-htmlgen.sh
+
+cat html/pmfindex.css > pmfindex.html
+echo "<BODY><TABLE>" >> pmfindex.html
+awk '{print "<TR><TD class=filetype><A HREF=\"html/"$1".ext.html\">"$1"</A></TD><TD class=rpath>"$2"</TD></TR>"}' pmfindex.extensions >> pmfindex.html
+
+rm pmfindex.0 pmfindex.1 pmfindex-htmlgen.sh pmfindex.extensions
+
+echo "Done! pmfindex-dir/pmfindex.html contains the html index for $curpath files grouped by extension."
